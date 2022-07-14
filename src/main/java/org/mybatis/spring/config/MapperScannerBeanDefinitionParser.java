@@ -45,7 +45,10 @@ import org.w3c.dom.Element;
  */
 
 public class MapperScannerBeanDefinitionParser extends AbstractBeanDefinitionParser {
+  // 命名:
+  // MapperScanner BeanDefinition Parser = 用来解析 spring-mybatis.xml 文件下的 scan 标签中的属性和子元素
 
+  // 以下元素:都是@MapperScan中的有的
   private static final String ATTRIBUTE_BASE_PACKAGE = "base-package";
   private static final String ATTRIBUTE_ANNOTATION = "annotation";
   private static final String ATTRIBUTE_MARKER_INTERFACE = "marker-interface";
@@ -63,6 +66,9 @@ public class MapperScannerBeanDefinitionParser extends AbstractBeanDefinitionPar
    */
   @Override
   protected AbstractBeanDefinition parseInternal(Element element, ParserContext parserContext) {
+
+    // 1.  element 是在 spring-mybatis.xml 的 scan 标签 -> dom元素
+    // 几乎和 -> @MapperScan注解的方式一个 -> 去构造一个 MapperScannerConfigurer 的 BeanDefinition 而已 ~ 忽略
     BeanDefinitionBuilder builder = BeanDefinitionBuilder.genericBeanDefinition(MapperScannerConfigurer.class);
 
     ClassLoader classLoader = ClassUtils.getDefaultClassLoader();
@@ -72,8 +78,7 @@ public class MapperScannerBeanDefinitionParser extends AbstractBeanDefinitionPar
       String annotationClassName = element.getAttribute(ATTRIBUTE_ANNOTATION);
       if (StringUtils.hasText(annotationClassName)) {
         @SuppressWarnings("unchecked")
-        Class<? extends Annotation> annotationClass = (Class<? extends Annotation>) classLoader
-            .loadClass(annotationClassName);
+        Class<? extends Annotation> annotationClass = (Class<? extends Annotation>) classLoader.loadClass(annotationClassName);
         builder.addPropertyValue("annotationClass", annotationClass);
       }
       String markerInterfaceClassName = element.getAttribute(ATTRIBUTE_MARKER_INTERFACE);

@@ -23,6 +23,7 @@ import org.apache.ibatis.logging.LogFactory;
  * @author Putthiphong Boonphong
  */
 public class LoggerFactory {
+  // 生成Logger日志包装器的对象
 
   private LoggerFactory() {
     // NOP

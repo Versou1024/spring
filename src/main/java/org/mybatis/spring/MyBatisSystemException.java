@@ -28,6 +28,15 @@ import org.springframework.dao.UncategorizedDataAccessException;
  */
 @SuppressWarnings("squid:MaximumInheritanceDepth") // It is the intended design
 public class MyBatisSystemException extends UncategorizedDataAccessException {
+  // 命名:
+  // MyBatis System Exception = Mybatis系统异常
+
+  // 继承体系:
+  // UncategorizedDataAccessException 来源于 org.springframework.dao
+  // 且属于 DataAccessException 异常体系的一员
+
+  // 作用:
+  // 在 MyBatisExceptionTranslator 中遇到无法翻译的Exception时,统统转换为 MyBatisSystemException
 
   private static final long serialVersionUID = -5284728621670758939L;
 

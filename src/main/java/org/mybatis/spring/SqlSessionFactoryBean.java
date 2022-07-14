@@ -86,8 +86,7 @@ import org.springframework.util.ClassUtils;
  * @see #setConfigLocation
  * @see #setDataSource
  */
-public class SqlSessionFactoryBean
-    implements FactoryBean<SqlSessionFactory>, InitializingBean, ApplicationListener<ApplicationEvent> {
+public class SqlSessionFactoryBean implements FactoryBean<SqlSessionFactory>, InitializingBean, ApplicationListener<ApplicationEvent> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SqlSessionFactoryBean.class);
 

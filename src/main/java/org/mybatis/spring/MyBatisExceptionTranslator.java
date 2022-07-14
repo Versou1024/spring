@@ -38,8 +38,17 @@ import org.springframework.transaction.TransactionException;
  * @author Eduardo Macarron
  */
 public class MyBatisExceptionTranslator implements PersistenceExceptionTranslator {
+  // 命名:
+  // MyBatis Exception Translator = Mybatis框架的异常翻译器
 
+  // 作用:
+  // 将Mybatis的异常翻译为Spring的异常 -> [默认被使用哦]
+
+  // SQLExceptionTranslator 翻译器
   private final Supplier<SQLExceptionTranslator> exceptionTranslatorSupplier;
+
+  // SQLExceptionTranslator 翻译器
+  // 默认: SQLErrorCodeSQLExceptionTranslator
   private SQLExceptionTranslator exceptionTranslator;
 
   /**
@@ -67,6 +76,7 @@ public class MyBatisExceptionTranslator implements PersistenceExceptionTranslato
    */
   public MyBatisExceptionTranslator(Supplier<SQLExceptionTranslator> exceptionTranslatorSupplier,
       boolean exceptionTranslatorLazyInit) {
+    // 允许懒加载 -> 后续第一次调用translateExceptionIfPossible(..)再去调用initExceptionTranslator()初始化获取SQLErrorCodeSQLExceptionTranslator
     this.exceptionTranslatorSupplier = exceptionTranslatorSupplier;
     if (!exceptionTranslatorLazyInit) {
       this.initExceptionTranslator();
@@ -78,21 +88,28 @@ public class MyBatisExceptionTranslator implements PersistenceExceptionTranslato
    */
   @Override
   public DataAccessException translateExceptionIfPossible(RuntimeException e) {
+    // 重写: PersistenceExceptionTranslator#translateExceptionIfPossible(..)
+
+    // 1. 只针对Mybatis的持久化异常PersistenceException进行转换
     if (e instanceof PersistenceException) {
-      // Batch exceptions come inside another PersistenceException
-      // recursion has a risk of infinite loop so better make another if
+      // 1.1 批处理异常进入另一个 PersistenceException 递归有无限循环的风险，所以最好再做一个 if
       if (e.getCause() instanceof PersistenceException) {
         e = (PersistenceException) e.getCause();
       }
+      // 1.2 cause属于SQLException
       if (e.getCause() instanceof SQLException) {
         this.initExceptionTranslator();
         String task = e.getMessage() + "\n";
         SQLException se = (SQLException) e.getCause();
+        // 1.2.1 使用 SQLErrorCodeSQLExceptionTranslator 翻译异常信息
         DataAccessException dae = this.exceptionTranslator.translate(task, null, se);
         return dae != null ? dae : new UncategorizedSQLException(task, null, se);
-      } else if (e.getCause() instanceof TransactionException) {
+      }
+      // 1.3 TransactionException -> 属于已经被事务的异常
+      else if (e.getCause() instanceof TransactionException) {
         throw (TransactionException) e.getCause();
       }
+      // 1.4 对于非上述的异常,统统转换为Mybatis的系统异常 -> [从继承关系上而言,MyBatisSystemException间接实现了Spring的DataAccessException]
       return new MyBatisSystemException(e);
     }
     return null;

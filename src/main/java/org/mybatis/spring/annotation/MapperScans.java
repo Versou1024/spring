@@ -40,5 +40,6 @@ import org.springframework.context.annotation.Import;
 @Documented
 @Import(MapperScannerRegistrar.RepeatingRegistrar.class)
 public @interface MapperScans {
+  // @MapperScan的组合注解
   MapperScan[] value();
 }

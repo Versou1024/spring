@@ -16,14 +16,19 @@
     limitations under the License.
 
 -->
+<!--
+xmlns:xsd="http://www.w3.org/2001/XMLSchema"  显示 schema 中用到的元素和数据类型来自命名空间 "http://www.w3.org/2001/XMLSchema"。同时它还规定了来自命名空间 "http://www.w3.org/2001/XMLSchema" 的元素和数据类型应该使用前缀 xsd：
+targetNamespace="http://mybatis.org/schema/mybatis-spring" 显示被此 schema 定义的元素 (scan等等) 将注入命名空间： "http://mybatis.org/schema/mybatis-spring"。
+xmlns="http://http://mybatis.org/schema/mybatis-spring"  默认的命名空间
+-->
 <xsd:schema xmlns="http://mybatis.org/schema/mybatis-spring"
-  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
-  xmlns:beans="http://www.springframework.org/schema/beans"
-  xmlns:tool="http://www.springframework.org/schema/tool"
-  targetNamespace="http://mybatis.org/schema/mybatis-spring"
-  elementFormDefault="qualified" attributeFormDefault="unqualified">
+            xmlns:xsd="http://www.w3.org/2001/XMLSchema"
 
-  <xsd:element name="scan">
+            xmlns:tool="http://www.springframework.org/schema/tool"
+            targetNamespace="http://mybatis.org/schema/mybatis-spring"
+            elementFormDefault="qualified" attributeFormDefault="unqualified">
+
+  <xsd:element name="scan"> <!-- 额外扩展的元素就是: scan -->
     <xsd:annotation>
       <xsd:documentation>
         <![CDATA[
@@ -33,9 +38,9 @@
       </xsd:documentation>
     </xsd:annotation>
     <xsd:complexType>
-      <xsd:attribute name="base-package" type="xsd:string"
-        use="required">
-        <xsd:annotation>
+      <xsd:attribute name="base-package" type="xsd:string" 
+        use="required"> <!-- 有一个base-package属性 -->
+        <xsd:annotation> <!-- xsd:annotaion 和 xsd:documentation 主要是为用户提供展示的解释信息 -->
           <xsd:documentation>
             <![CDATA[
               The comma-separated list of packages to scan for annotated components.

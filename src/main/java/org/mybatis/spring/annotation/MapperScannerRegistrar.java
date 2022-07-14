@@ -52,6 +52,24 @@ import org.springframework.util.StringUtils;
  * @since 1.2.0
  */
 public class MapperScannerRegistrar implements ImportBeanDefinitionRegistrar, ResourceLoaderAware {
+  // 位于: org.mybatis.spring.annotation -> 表明@MapperScan仅仅关联哦
+
+  // 核心: ❗️❗️❗️
+
+  // 命名:
+  // Mapper Scanner Registrar -> 主要是将 Mapper Scanner 扫描器相关类的加载到ioc容器中
+  // 例如: MapperScannerConfigurer配置中心
+
+  // 使用:
+  // 当使用@MapperScan时需要注意一点: -- 那就是其他有一个元注解 @Import(MapperScannerRegistrar.class)
+  // 对应这里的 MapperScannerRegistrar 实现的是 ImportBeanDefinitionRegistrar
+  // 在Spring中当 ImportBeanDefinitionRegistrar#registerBeanDefinitions() 执行的时候
+  // -- 项目中的配置类\项目中的组件类\项目中配置类中的@Bean方法\项目中@Import的ImportSelector和DerffedImportSelector导入类的也被递归导入\
+  // -- 甚至包括SpringBoot中常用的spring.factories中外部配置类\外部配置类的@Bean方法都会先加载到BeanDefinitionRegistry
+
+  // 核心作用:
+  // 1. 向BeanDefinitionRegistry中注册MapperScannerConfigurer配置中心
+  // 2. 并将@MapperScan的相关属性设置到MapperScannerConfigurer配置中心上去
 
   /**
    * {@inheritDoc}
@@ -69,17 +87,19 @@ public class MapperScannerRegistrar implements ImportBeanDefinitionRegistrar, Re
    */
   @Override
   public void registerBeanDefinitions(AnnotationMetadata importingClassMetadata, BeanDefinitionRegistry registry) {
-    AnnotationAttributes mapperScanAttrs = AnnotationAttributes
-        .fromMap(importingClassMetadata.getAnnotationAttributes(MapperScan.class.getName()));
+
+    // 1. importingClassMetadata 就是元注解有@Import(MapperScannerRegistrar.class)[实际就是类上有@MapperScan即可]的类的注解元数据
+    AnnotationAttributes mapperScanAttrs = AnnotationAttributes.fromMap(importingClassMetadata.getAnnotationAttributes(MapperScan.class.getName()));
+    // 2. 拿到@MapperScan开始准备
     if (mapperScanAttrs != null) {
-      registerBeanDefinitions(importingClassMetadata, mapperScanAttrs, registry,
-          generateBaseBeanName(importingClassMetadata, 0));
+      registerBeanDefinitions(importingClassMetadata, mapperScanAttrs, registry, generateBaseBeanName(importingClassMetadata, 0));
     }
   }
 
-  void registerBeanDefinitions(AnnotationMetadata annoMeta, AnnotationAttributes annoAttrs,
-      BeanDefinitionRegistry registry, String beanName) {
+  void registerBeanDefinitions(AnnotationMetadata annoMeta, AnnotationAttributes annoAttrs, BeanDefinitionRegistry registry, String beanName) {
 
+    // 1. 注入的beanClass默认为MapperScannerConfigurer
+    // 向MapperScannerConfigurer设置系列的属性 -- 期间会搭配@MapperScan中的属性值
     BeanDefinitionBuilder builder = BeanDefinitionBuilder.genericBeanDefinition(MapperScannerConfigurer.class);
     builder.addPropertyValue("processPropertyPlaceHolders", true);
 
@@ -113,6 +133,8 @@ public class MapperScannerRegistrar implements ImportBeanDefinitionRegistrar, Re
       builder.addPropertyValue("sqlSessionFactoryBeanName", annoAttrs.getString("sqlSessionFactoryRef"));
     }
 
+    // 2. 要扫描的基本package
+
     List<String> basePackages = new ArrayList<>();
 
     basePackages.addAll(Arrays.stream(annoAttrs.getStringArray("basePackages")).filter(StringUtils::hasText)
@@ -121,6 +143,7 @@ public class MapperScannerRegistrar implements ImportBeanDefinitionRegistrar, Re
     basePackages.addAll(Arrays.stream(annoAttrs.getClassArray("basePackageClasses")).map(ClassUtils::getPackageName)
         .collect(Collectors.toList()));
 
+    // 2.1 当没有指定basePackage和basePackageClasses时,将指定默认扫描的路径为: 使用@MapperScan的配置类的package
     if (basePackages.isEmpty()) {
       basePackages.add(getDefaultBasePackage(annoMeta));
     }
@@ -137,18 +160,25 @@ public class MapperScannerRegistrar implements ImportBeanDefinitionRegistrar, Re
 
     builder.addPropertyValue("basePackage", StringUtils.collectionToCommaDelimitedString(basePackages));
 
-    // for spring-native
+    // 2.2 设置bean的角色Role
     builder.setRole(BeanDefinition.ROLE_INFRASTRUCTURE);
 
     registry.registerBeanDefinition(beanName, builder.getBeanDefinition());
 
+    // 接下来主要是看 MapperScannerConfigurer 在实例化过程的干了什么/以及实例化之后做了写什么
+
   }
 
   private static String generateBaseBeanName(AnnotationMetadata importingClassMetadata, int index) {
+    // 生成注入的MapperScannerConfigurer的BeanName
+    // 默认是:使用@MapperScan的类的名字 + # + MapperScannerRegistrar + # + index
+
     return importingClassMetadata.getClassName() + "#" + MapperScannerRegistrar.class.getSimpleName() + "#" + index;
   }
 
   private static String getDefaultBasePackage(AnnotationMetadata importingClassMetadata) {
+    // 就是类的全限定类名去除类名即得到
+
     return ClassUtils.getPackageName(importingClassMetadata.getClassName());
   }
 

@@ -37,6 +37,10 @@ import org.springframework.dao.support.DaoSupport;
  * @see SqlSessionTemplate
  */
 public abstract class SqlSessionDaoSupport extends DaoSupport {
+  // 命名:
+  // SqlSessionDaoSupport = Sql Session DaoSupport
+  // 要求: 必须注入SqlSessionTemplate,否则在DaoSupport的初始化方法afterPropertiesSet()中调用checkDaoConfig()会报错!!!
+  // 此类需要 SqlSessionTemplate 或 SqlSessionFactory,如果两者都设置了 SqlSessionFactory 将被忽略。
 
   private SqlSessionTemplate sqlSessionTemplate;
 
@@ -48,6 +52,9 @@ public abstract class SqlSessionDaoSupport extends DaoSupport {
    *          a factory of SqlSession
    */
   public void setSqlSessionFactory(SqlSessionFactory sqlSessionFactory) {
+    // sqlSessionFactory: 位于 org.apache.ibatis.session
+
+    // 设置当前 DAO 使用的 sqlSessionTemplate: new SqlSessionTemplate(sqlSessionFactory)
     if (this.sqlSessionTemplate == null || sqlSessionFactory != this.sqlSessionTemplate.getSqlSessionFactory()) {
       this.sqlSessionTemplate = createSqlSessionTemplate(sqlSessionFactory);
     }
@@ -87,6 +94,8 @@ public abstract class SqlSessionDaoSupport extends DaoSupport {
    * @see #setSqlSessionFactory
    */
   public void setSqlSessionTemplate(SqlSessionTemplate sqlSessionTemplate) {
+    // 直接设置sqlSessionTemplate,将导致setSqlSessionFactory()执行失效
+
     this.sqlSessionTemplate = sqlSessionTemplate;
   }
 
@@ -119,6 +128,8 @@ public abstract class SqlSessionDaoSupport extends DaoSupport {
    */
   @Override
   protected void checkDaoConfig() {
+    // ❗️❗️❗️
+    // 要求: 必须有注入SqlSessionTemplate[本质就是一个SqlSession] 或者 必须注入 SqlSessionFactory来创建SqlSession
     notNull(this.sqlSessionTemplate, "Property 'sqlSessionFactory' or 'sqlSessionTemplate' are required");
   }
 

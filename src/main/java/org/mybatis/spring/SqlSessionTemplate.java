@@ -73,14 +73,83 @@ import org.springframework.dao.support.PersistenceExceptionTranslator;
  * @see MyBatisExceptionTranslator
  */
 public class SqlSessionTemplate implements SqlSession, DisposableBean {
+  // 位于: org.mybatis.spring package 下
 
+  // 作用:
+  // 1. 单纯的SqlSession其关闭操作需要人为控制,而SqlSessionTemplate同时实现了DisposableBean,将SqlSession的销毁交给Spring管理
+  // 2. 构造的 SqlSession 是受到 Spring 管理的 -> 本质也就是还是一个Mybatis的SqlSession
+
+  // 继承体系:
+  // SqlSessionTemplate implements SqlSession
+
+  // 来自:Mybatis的创建SqlSession的工厂
+  // 常用的就是 -- DefaultSqlSessionFactory类
   private final SqlSessionFactory sqlSessionFactory;
 
+  // 来自:Mybatis的执行器类型
+  // 执行器类型: 包括 SIMPLE\REUSE\BATCH
+  // 默认: SIMPLE
   private final ExecutorType executorType;
 
+  // 来自:Mybatis的SqlSession
+  // -- 装饰和代理模式
+  // 实际SqlSession的核心功能委托给sqlSessionProxy处理
+  // 而且实际上在构造器上我们还对目标SqlSession进行了代理哦
   private final SqlSession sqlSessionProxy;
 
+  // 持久异常翻译器 -> 来自Spring
+  // 作用: 将ORM矿建报出的异常,翻译为Spring框架合适的异常,其超类时Spring提供的DataAccessException异常
+  // 默认是: SqlSessionInterceptor
   private final PersistenceExceptionTranslator exceptionTranslator;
+
+  // 实际项目: 如何引入的SqlSessionTemplate
+  // 以 xy-website 项目为例:
+  // public class PrimaryDataSourceConfig {
+  //
+  //    private final MybatisPlusInterceptor mybatisPlusInterceptor;
+  //
+  //    public PrimaryDataSourceConfig(MybatisPlusInterceptor mybatisPlusInterceptor) {
+  //        this.mybatisPlusInterceptor = mybatisPlusInterceptor;
+  //    }
+  //
+  //    /**
+  //     * ConfigurationProperties将配置文件的匹配的属性按名注入到DataSource类中
+  //     */
+  //    @Bean(name = "primaryDataSource")
+  //    @ConfigurationProperties(prefix = "spring.datasource.dynamic.datasource.primary")
+  //    @Primary
+  //    public DataSource createDataSource() {
+  //        return DataSourceBuilder.create().build();
+  //    }
+  //
+  //    @Bean(name = "primarySqlSessionFactory")
+  //    @Primary
+  //    public SqlSessionFactory sessionFactory(@Qualifier("primaryDataSource") DataSource dataSource) throws Exception {
+  //
+  //        MybatisSqlSessionFactoryBean bean = new MybatisSqlSessionFactoryBean();
+  //        bean.setDataSource(dataSource);
+  //        //设置分页插件
+  //        bean.setPlugins(mybatisPlusInterceptor);
+  //        //多数据源指定对应枚举包名
+  //        bean.setTypeEnumsPackage("com.xylink.website.**.constant");
+  //        bean.setMapperLocations(new PathMatchingResourcePatternResolver().getResources("classpath:mapper/*.xml"));
+  //        return bean.getObject();
+  //    }
+  //
+  //    @Bean(name = "primaryTransactionManager")
+  //    @Primary
+  //    public DataSourceTransactionManager transactionManager(@Qualifier("primaryDataSource") DataSource dataSource) {
+  //        return new DataSourceTransactionManager(dataSource);
+  //    }
+  //
+  //    @Bean(name = "primarySqlSessionTemplate")
+  //    @Primary
+  //    public SqlSessionTemplate sqlSessionTemplate(@Qualifier("primarySqlSessionFactory") SqlSessionFactory sqlSessionFactory) {
+  //        return new SqlSessionTemplate(sqlSessionFactory);
+  //
+  //    }
+  //
+  //}
 
   /**
    * Constructs a Spring managed SqlSession with the {@code SqlSessionFactory} provided as an argument.
@@ -89,6 +158,7 @@ public class SqlSessionTemplate implements SqlSession, DisposableBean {
    *          a factory of SqlSession
    */
   public SqlSessionTemplate(SqlSessionFactory sqlSessionFactory) {
+    // sqlSessionFactory.getConfiguration().getDefaultExecutorType() 默认是SIMPLE的 [99%的情况使用这个,以上面的项目为例哦]
     this(sqlSessionFactory, sqlSessionFactory.getConfiguration().getDefaultExecutorType());
   }
 
@@ -102,6 +172,7 @@ public class SqlSessionTemplate implements SqlSession, DisposableBean {
    *          an executor type on session
    */
   public SqlSessionTemplate(SqlSessionFactory sqlSessionFactory, ExecutorType executorType) {
+    // 额外指定: ExecutorType
     this(sqlSessionFactory, executorType,
         new MyBatisExceptionTranslator(sqlSessionFactory.getConfiguration().getEnvironment().getDataSource(), true));
   }
@@ -121,6 +192,7 @@ public class SqlSessionTemplate implements SqlSession, DisposableBean {
    */
   public SqlSessionTemplate(SqlSessionFactory sqlSessionFactory, ExecutorType executorType,
       PersistenceExceptionTranslator exceptionTranslator) {
+    // 额外指定: PersistenceExceptionTranslator ORM框架异常翻译器
 
     notNull(sqlSessionFactory, "Property 'sqlSessionFactory' is required");
     notNull(executorType, "Property 'executorType' is required");
@@ -128,8 +200,9 @@ public class SqlSessionTemplate implements SqlSession, DisposableBean {
     this.sqlSessionFactory = sqlSessionFactory;
     this.executorType = executorType;
     this.exceptionTranslator = exceptionTranslator;
-    this.sqlSessionProxy = (SqlSession) newProxyInstance(SqlSessionFactory.class.getClassLoader(),
-        new Class[] { SqlSession.class }, new SqlSessionInterceptor());
+    // ❗️❗️❗️
+    // 代理类的拦截器 -- 内部类SqlSessionInterceptor
+    this.sqlSessionProxy = (SqlSession) newProxyInstance(SqlSessionFactory.class.getClassLoader(), new Class[] { SqlSession.class }, new SqlSessionInterceptor());
   }
 
   public SqlSessionFactory getSqlSessionFactory() {
@@ -312,6 +385,8 @@ public class SqlSessionTemplate implements SqlSession, DisposableBean {
     return getConfiguration().getMapper(type, this);
   }
 
+  // ❗️❗️❗️将commit提交/rollback回滚/close关闭三个操作重写 -- 直接抛出异常
+
   /**
    * {@inheritDoc}
    */
@@ -419,30 +494,42 @@ public class SqlSessionTemplate implements SqlSession, DisposableBean {
    * {@code PersistenceExceptionTranslator}.
    */
   private class SqlSessionInterceptor implements InvocationHandler {
+    // 代理需要将 MyBatis 的方法调用 路由 到从 Spring 的事务管理器获取的正确 SqlSession
+    // 它还解包Method#invoke(Object, Object...)抛出的异常以将PersistenceExceptionTranslator PersistenceException
+
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-      SqlSession sqlSession = getSqlSession(SqlSessionTemplate.this.sqlSessionFactory,
-          SqlSessionTemplate.this.executorType, SqlSessionTemplate.this.exceptionTranslator);
+      // 1. 每次都是重新去获取一个SqlSession
+      // 注意: 静态导入 import static org.mybatis.spring.SqlSessionUtils -> 实际执行 SqlSessionUtils.getSqlSession()
+      SqlSession sqlSession = getSqlSession(SqlSessionTemplate.this.sqlSessionFactory, SqlSessionTemplate.this.executorType, SqlSessionTemplate.this.exceptionTranslator);
       try {
+        // 2. 执行目标的mapper方法
         Object result = method.invoke(sqlSession, args);
+        // 3. 检查SqlSession是否被Spring的事务同步管理器持有 -> 持有表明: 当前Mapper方法在一个事务中执行,不需要自己执行sqlSessiion.commit(),而是交给@Transactional的事务管理器来commit()
         if (!isSqlSessionTransactional(sqlSession, SqlSessionTemplate.this.sqlSessionFactory)) {
-          // force commit even on non-dirty sessions because some databases require
-          // a commit/rollback before calling close()
+          // 3.1 即使在非脏会话上也强制提交，因为某些数据库在调用 close() 之前需要提交回
           sqlSession.commit(true);
         }
+        // 3.2 返回结果
         return result;
       } catch (Throwable t) {
+        // 4. 捕获到异常 -> 将ORM框架的异常,翻译为Spring的DataAccessException系列异常,并且释放SqlSession
+
+        // 4.1 拿到真实的异常
         Throwable unwrapped = unwrapThrowable(t);
+        // 4.2 对于: 持久化异常PersistenceException,需要使用翻译器exceptionTranslator翻译
+        // note: PersistenceException是Mybatis的异常超类之一
         if (SqlSessionTemplate.this.exceptionTranslator != null && unwrapped instanceof PersistenceException) {
-          // release the connection to avoid a deadlock if the translator is no loaded. See issue #22
+          // 4.3 出现异常,需要释放SqlSession
           closeSqlSession(sqlSession, SqlSessionTemplate.this.sqlSessionFactory);
           sqlSession = null;
-          Throwable translated = SqlSessionTemplate.this.exceptionTranslator
-              .translateExceptionIfPossible((PersistenceException) unwrapped);
+          // 4.4 异常转换
+          Throwable translated = SqlSessionTemplate.this.exceptionTranslator.translateExceptionIfPossible((PersistenceException) unwrapped);
           if (translated != null) {
             unwrapped = translated;
           }
         }
+        // 4.5 重新抛出转换后的异常
         throw unwrapped;
       } finally {
         if (sqlSession != null) {

@@ -31,6 +31,13 @@ import org.springframework.transaction.support.ResourceHolderSupport;
  * @author Eduardo Macarron
  */
 public final class SqlSessionHolder extends ResourceHolderSupport {
+  // 命名:
+  // SqlSession Holder = SqlSession的资源持有者
+  // 用于绑定到到TransactionSynchronizationManager中的resource: 以SqlSessionFactory为key,以SqlSessionHolder为value
+  // 绑定当前线程在同一个SqlSessionFactory下使用的SqlSession
+
+  // 持有:
+  // SqlSession/ExecutorType/PersistenceExceptionTranslator
 
   private final SqlSession sqlSession;
 

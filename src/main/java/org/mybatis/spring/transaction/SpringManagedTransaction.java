@@ -42,6 +42,12 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  * @author Eduardo Macarron
  */
 public class SpringManagedTransaction implements Transaction {
+  // 命名:
+  // Spring Managed Transaction = 受Spring管理的事务
+
+  // 目的:
+  // 1. 标记为Spring管理的事务,并且将getConnection()/getTimeout()等等操作和Spring的事务同步管理器TransactionSynchronizationManager组合起来[保证和Spring使用的jdbc相关资源同步]
+  // 2. 处理 JDBC 连接的生命周期 -> commit()\close()\rollback()\设置隔离级别\设置超时时间\获取来了解
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SpringManagedTransaction.class);
 
@@ -77,12 +83,17 @@ public class SpringManagedTransaction implements Transaction {
    * false and will always call commit/rollback so we need to no-op that calls.
    */
   private void openConnection() throws SQLException {
+    // 1. Spring的DataSourceUtils工具
+    // 源码步骤:
+    //    1. 尝试从事务同步器中: 根据DataSource去获取对应的Connection ->  TransactionSynchronizationManager.getResource(dataSource)
+    //    2. 如果第一步失败,就从DataSource中获取connection,并在TransactionSynchronizationManager#isSynchronizationActive()同步器开启的情况下
+    //       将DataSource和封装好的ConnectionHolder作为键值对存入到事务同步器里resource资源中管理
     this.connection = DataSourceUtils.getConnection(this.dataSource);
     this.autoCommit = this.connection.getAutoCommit();
     this.isConnectionTransactional = DataSourceUtils.isConnectionTransactional(this.connection, this.dataSource);
 
     LOGGER.debug(() -> "JDBC Connection [" + this.connection + "] will"
-        + (this.isConnectionTransactional ? " " : " not ") + "be managed by Spring");
+      + (this.isConnectionTransactional ? " " : " not ") + "be managed by Spring");
   }
 
   /**
@@ -90,6 +101,7 @@ public class SpringManagedTransaction implements Transaction {
    */
   @Override
   public void commit() throws SQLException {
+    // 委托: connection.commit()
     if (this.connection != null && !this.isConnectionTransactional && !this.autoCommit) {
       LOGGER.debug(() -> "Committing JDBC Connection [" + this.connection + "]");
       this.connection.commit();
@@ -101,6 +113,7 @@ public class SpringManagedTransaction implements Transaction {
    */
   @Override
   public void rollback() throws SQLException {
+    // 委托: connection.rollback()
     if (this.connection != null && !this.isConnectionTransactional && !this.autoCommit) {
       LOGGER.debug(() -> "Rolling back JDBC Connection [" + this.connection + "]");
       this.connection.rollback();
@@ -112,6 +125,15 @@ public class SpringManagedTransaction implements Transaction {
    */
   @Override
   public void close() throws SQLException {
+    // Spring的DataSourceUtils工具
+    // 主要源码:
+    //    ConnectionHolder conHolder = (ConnectionHolder)TransactionSynchronizationManager.getResource(dataSource);
+    //    if (conHolder != null && connectionEquals(conHolder, con)) {
+    //        conHolder.released();
+    //        return;
+    //    }
+    //    ...
+    //    con.close();
     DataSourceUtils.releaseConnection(this.connection, this.dataSource);
   }
 
@@ -120,6 +142,7 @@ public class SpringManagedTransaction implements Transaction {
    */
   @Override
   public Integer getTimeout() throws SQLException {
+    // 1. 获取超时时间 -> 从事务同步管理器中拿到ConnectionHolder,然后再去拿到TimeOut
     ConnectionHolder holder = (ConnectionHolder) TransactionSynchronizationManager.getResource(dataSource);
     if (holder != null && holder.hasTimeout()) {
       return holder.getTimeToLiveInSeconds();

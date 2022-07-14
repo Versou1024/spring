@@ -25,6 +25,10 @@ import org.apache.ibatis.logging.Log;
  * @author Putthiphong Boonphong
  */
 public class Logger {
+  // 命名:
+  // Logger = 日志器
+  // 对Mybatis的日志log的包装器,提供lambda表达式的输出
+  // mybatis有四个日志级别: error warn debug trace
 
   private final Log log;
 

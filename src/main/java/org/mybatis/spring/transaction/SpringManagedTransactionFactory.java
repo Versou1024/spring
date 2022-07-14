@@ -30,6 +30,32 @@ import org.apache.ibatis.transaction.TransactionFactory;
  * @author Hunter Presnall
  */
 public class SpringManagedTransactionFactory implements TransactionFactory {
+  // 位于: org.mybatis.spring.transaction
+
+  // 命名:
+  // Spring Managed TransactionFactory =  受到Spring管理的TransactionFactory事务工厂
+
+  // 作用:
+  // 生成: SpringManagedTransaction Spring管理的事务对象[耦合Mybatis的Transaction,耦合Spring的事务同步管理器TransactionSynchronizationManager]
+
+  // TransactionFactory实现类:
+  // Mybatis只有JdbcTransactionFactory和ManagedTransactionFactory两种实现哦
+  // Mybatis的Transaction
+
+  // 了解:
+  // TransactionFactory的方法:
+  //    Transaction newTransaction(Connection conn) -> 从jdbc连接创建transaction
+  //    Transaction newTransaction(DataSource dataSource, TransactionIsolationLevel level, boolean autoCommit) -> 从dataSource创建Transaction
+  // Transaction的方法:
+  //    getConnection():Connection
+  //    commit():void
+  //    rollback():void
+  //    close():void
+  //    getTimeout():Integer
+  //    其实现类JdbcTransaction -> connection\dataSource\事务隔离级别\是否自动提交
+
+
+  // 只支持:使用DataSource来为其创建SpringManagedTransaction
 
   /**
    * {@inheritDoc}
