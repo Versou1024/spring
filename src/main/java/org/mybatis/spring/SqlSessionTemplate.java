@@ -146,10 +146,12 @@ public class SqlSessionTemplate implements SqlSession, DisposableBean {
   //    @Primary
   //    public SqlSessionTemplate sqlSessionTemplate(@Qualifier("primarySqlSessionFactory") SqlSessionFactory sqlSessionFactory) {
   //        return new SqlSessionTemplate(sqlSessionFactory);
-  //
   //    }
   //
   //}
+
+  // note: 在mybatis-plus项目中,用户可以不再手动引入SqlSessionTemplate
+  // 在mybatis-plus项目的 MybatisPlusAutoConfiguration#sqlSessionTemplate(..) 方法中会构造 SqlSessionTemplate
 
   /**
    * Constructs a Spring managed SqlSession with the {@code SqlSessionFactory} provided as an argument.

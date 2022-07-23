@@ -158,8 +158,7 @@ public @interface MapperScan {
    * @return the annotation that the scanner will search for
    */
   Class<? extends Annotation> annotationClass() default Annotation.class;
-  // 此属性指定扫描仪将搜索的注释 -- 默认是搜索@Mapper注解哦
-  // ❗️❗️❗️
+  // 此属性指定扫描仪将搜索的注释 -> 默认空的,供用户实现,mybatis-spring没有实现
 
   /**
    * This property specifies the parent that the scanner will search for.

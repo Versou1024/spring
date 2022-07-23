@@ -343,10 +343,11 @@ public class ClassPathMapperScanner extends ClassPathBeanDefinitionScanner {
         explicitFactoryUsed = true;
       }
 
-      // 1.6 ❗️❗️❗️
+      // 1.6 ❗️❗️❗️ [TODO 非常重要的一个步骤哦]
       // 未指定sqlSessionFactory且未指定sqlSessionTemplate
-      // -> MapperFactoryBean的超类SqlSessionDaoSupport#checkDaoConfig()要求: 必须有SqlSessionTemplate或能够产生SqlSessionTemplate的SqlSessionFactory [否则:报错哦]
-      // ->
+      // 那么这个歌时候将其 AutowriteMode 设置为 AUTOWIRE_BY_TYPE
+      // 那么后续再去构建这个definition时,会根据类型自动去匹配响应的属性导入bean中 ->> 因此只要用户向ioc容器设置过唯一的SqlSessionTemplate或SqlSessionFactory
+      // 就会自动被注入到 MapperFactoryBean 中去
       if (!explicitFactoryUsed) {
         LOGGER.debug(() -> "Enabling autowire by type for MapperFactoryBean with name '" + holder.getBeanName() + "'.");
         definition.setAutowireMode(AbstractBeanDefinition.AUTOWIRE_BY_TYPE); // 按照类型填充 -- 当没有指定sqlSessionTemplate或sqlSessionFactory
